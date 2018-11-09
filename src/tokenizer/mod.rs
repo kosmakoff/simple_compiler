@@ -1,4 +1,4 @@
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum Token {
     LParen,
     RParen,
@@ -28,49 +28,55 @@ impl Interpreter {
         self.pos = self.pos + 1;
     }
 
-    fn current(&self) -> Option<&Token> {
-        if self.pos >= 0 && self.pos < self.tokens.len() {
-            Some(&self.tokens[self.pos])
+    fn current(&self) -> Option<Token> {
+        if self.pos < self.tokens.len() {
+            Some(self.tokens[self.pos].clone())
         } else {
             None
         }
     }
 
-    fn eat_plus(&mut self) -> Result<Token, String> {
-        if let Some(&Plus) = self.current() {
+    fn eat_plus(&mut self) -> Result<(), String> {
+        if let Some(Plus) = self.current() {
             self.advance();
-            Ok(Plus)
+            Ok(())
         } else {
             Err(format!("Expected PLUS, found {:?}", self.current()))
         }
     }
 
-    fn eat_minus(&mut self) -> Result<Token, String> {
-        if let Some(&Minus) = self.current() {
+    fn eat_minus(&mut self) -> Result<(), String> {
+        if let Some(Minus) = self.current() {
             self.advance();
-            Ok(Minus)
+            Ok(())
         } else {
             Err(format!("Expected MINUS, found {:?}", self.current()))
         }
     }
 
-    fn eat_integer(&mut self) -> Result<Token, String> {
-        if let Some(&Integer(n)) = self.current() {
+    fn eat_integer(&mut self) -> Result<i32, String> {
+        if let Some(Integer(n)) = self.current() {
             self.advance();
-            Ok(Integer(n))
+            Ok(n)
         } else {
             Err(format!("Expected INTEGER, found {:?}", self.current()))
         }
     }
 
-    fn expr(&mut self) -> i32 {
+    fn expr(&mut self) -> Result<i32, String> {
         let mut result: i32 = 0;
+        result = result + self.eat_integer()?;
 
-        result = result + self.eat_integer();
+        let current = self.current();
 
-        if let Some(Plus) = self.current() {
-
+        match current {
+            Some(Plus) => self.eat_plus()?,
+            Some(Minus) => self.eat_minus()?,
+            token @ _ => return Err(format!("Expected PLUS | MINUS, encountered: {:?}", token))
         }
+        result = result + self.eat_integer()?;
+
+        Ok(result)
     }
 }
 
@@ -149,8 +155,8 @@ pub fn tokenize(input: &str) -> Result<Vec<Token>, String> {
     Ok(vec)
 }
 
-pub fn interpret(tokens: Vec<Token>) -> i32 {
-    let interpreter = Interpreter::new(tokens);
+pub fn interpret(tokens: Vec<Token>) -> Result<i32, String> {
+    let mut interpreter = Interpreter::new(tokens);
 
     interpreter.expr()
 }
